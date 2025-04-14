@@ -31,9 +31,10 @@ def get_day_ahead_prices(bidding_zone: str = 'NL', start_date: str = '2016-01-01
     if save_to_csv:
         # Save to CSV
         filename = f"day_ahead_prices_{bidding_zone}_{start_date}_{end_date}.csv"
-        df.to_csv(filename, index=False)
+        df.to_csv(f"data/{filename}", index=False)
         print(f"Data saved to {filename}")
 
     return df
 
-get_day_ahead_prices()
+df = get_day_ahead_prices("NL", "2023-01-01", "2023-12-31", save_to_csv=True)
+print(df)
