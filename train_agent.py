@@ -35,7 +35,7 @@ eval_callback = EvalCallback(
 )
 
 print("[TRAINING] Starting training...")
-model.learn(total_timesteps=100000, callback=eval_callback)
+model.learn(total_timesteps=1000000, callback=eval_callback)
 
 print("[TRAINING] Training complete. Saving model...")
 model.save("dqn_battery")
