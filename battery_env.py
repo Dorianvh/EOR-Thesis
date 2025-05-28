@@ -3,24 +3,31 @@ from gymnasium import spaces
 import numpy as np
 import pandas as pd
 
+
 class BatteryEnv(gym.Env):
     """Custom Environment for Battery Storage Arbitrage using gymnasium."""
 
-    def __init__(self, price_file="data/ID1_prices_germany.csv"):
+    def __init__(self, data_file="data/ID1_prices_germany.csv"):
         super(BatteryEnv, self).__init__()
 
-        print("[INIT] Loading electricity price data from:", price_file)
+        print("[INIT] Loading environment data from:", data_file)
 
-        # Load hourly electricity prices from CSV
-        df = pd.read_csv(price_file, parse_dates=["Date"])
+        # Load hourly data from csv, this will be the external environment
+        df = pd.read_csv(data_file, parse_dates=["Date"])
         df = df.dropna(subset=["ID1_price"])
         self.prices = df['ID1_price'].values
+
+        # Each step for the agent corresponds to one hour of data
         self.max_step = len(self.prices) - 1
 
         # Battery parameters
         self.battery_capacity = 1.0  # in MWh
-        self.max_power = 0.25        # max charge/discharge per step (MW)
-        self.efficiency = 0.92       # charge/discharge efficiency
+        self.max_power = 1.0        # max charge/discharge per step (MW)
+        self.round_way_efficiency = 0.9
+        self.one_way_efficiency = np.sqrt(self.round_way_efficiency)  # charge/discharge efficiency
+        self.soc_min = 0.2  # minimum state of charge
+        self.soc_max = 0.8  # maximum state of charge
+        self.invalid_action_penalty = -100.0  # penalty for invalid actions
 
         # Define observation space: [current_price, state_of_charge]
         self.observation_space = spaces.Box(low=0, high=np.inf, shape=(2,), dtype=np.float32)
@@ -35,7 +42,7 @@ class BatteryEnv(gym.Env):
         print("[RESET] Resetting environment...")
 
         self.step_idx = 0
-        self.soc = 0.5  # start with 50% state of charge
+        self.soc = self.soc_min  # start with the minimun soc
         observation = self._get_obs()
         info = {}
 
@@ -54,18 +61,28 @@ class BatteryEnv(gym.Env):
         print(f"[STEP] Step {self.step_idx} | Price: {price:.2f} | SoC: {self.soc:.2f} | Action: {action}")
 
         if action == 0:  # CHARGE
-            energy = min(self.max_power, self.battery_capacity - self.soc)
-            cost = energy * price
-            self.soc += energy * self.efficiency
-            reward = -cost
-            print(f"[ACTION] Charging: bought {energy:.3f} MWh, new SoC: {self.soc:.2f}, reward: {reward:.2f}")
+            if self.soc >= self.soc_max:
+                reward = self.invalid_action_penalty
+                print(f"[INVALID ACTION] Cannot charge: SoC is already at maximum, SoC: {self.soc:.2f}, reward: {reward:.2f}")
+            else:
+                energy = -((self.soc_max - self.soc) / self.one_way_efficiency) * self.battery_capacity
+                cost = energy * price
+                self.soc = self.soc - ((-self.one_way_efficiency * np.abs(energy)) / self.battery_capacity)
+                reward = cost
+                print(f"[ACTION] Charging: bought {energy:.3f} MWh, new SoC: {self.soc:.2f}, reward: {reward:.2f}")
+
 
         elif action == 2:  # DISCHARGE
-            energy = min(self.max_power, self.soc)
-            revenue = energy * price
-            self.soc -= energy / self.efficiency
-            reward = revenue
-            print(f"[ACTION] Discharging: sold {energy:.3f} MWh, new SoC: {self.soc:.2f}, reward: {reward:.2f}")
+            if self.soc <= self.soc_min:
+                reward = self.invalid_action_penalty
+                print(f"[INVALID ACTION] Cannot discharge: SoC is already at minimum, SoC: {self.soc:.2f}, reward: {reward:.2f}")
+            else:
+                energy = self.one_way_efficiency * (self.soc - self.soc_min) * self.battery_capacity
+                revenue = energy * price
+                self.soc = self.soc - ((np.abs(energy) / self.one_way_efficiency) / self.battery_capacity)
+                reward = revenue
+                print(f"[ACTION] Discharging: sold {energy:.3f} MWh, new SoC: {self.soc:.2f}, reward: {reward:.2f}")
+
 
         else:
             print("[ACTION] Hold: no battery action taken.")
@@ -78,6 +95,5 @@ class BatteryEnv(gym.Env):
 
         return obs, reward, done, truncated, info
 
-    def render(self):
-        """Optional: Render current state (not required here)."""
-        print(f"[RENDER] Step {self.step_idx}, Price: {self.prices[self.step_idx]}, SoC: {self.soc}")
+
+
