@@ -3,8 +3,8 @@ from stable_baselines3.common.callbacks import EvalCallback
 from battery_env import BatteryEnv
 
 print("[TRAINING] Initializing training environment...")
-env = BatteryEnv("data/ID1_prices_germany.csv")
-eval_env = BatteryEnv("data/ID1_prices_germany.csv")
+env = BatteryEnv("../data/ID1_prices_germany.csv")
+eval_env = BatteryEnv("../data/ID1_prices_germany.csv")
 
 print("[TRAINING] Creating DQN model...")
 model = DQN(
@@ -26,8 +26,8 @@ model = DQN(
 print("[TRAINING] Defining evaluation callback...")
 eval_callback = EvalCallback(
     eval_env,
-    best_model_save_path='./models/',
-    log_path='./logs/',
+    best_model_save_path='../models/',
+    log_path='../logs/',
     eval_freq=10000,
     n_eval_episodes=1,
     deterministic=True,

@@ -23,7 +23,7 @@ def load_and_preprocess_data(file_path):
     df = df.dropna(subset=['ID1_price'])
 
    # Only keep data from 2023
-    df = df[df['Date'].dt.year == 2023]
+    df = df[df['Date'].dt.year == 2024]
 
     # Reset index after filtering
     df.reset_index(drop=True, inplace=True)
@@ -32,4 +32,11 @@ def load_and_preprocess_data(file_path):
     df['DayOfWeek'] = df['Date'].dt.dayofweek
     df['Month'] = df['Date'].dt.month
 
+    # move one directory up to save the preprocessed data
+
+    #df.to_csv("../data/preprocessed_data_2024.csv", index=False)
+
     return df[['ID1_price', 'Hour', 'DayOfWeek', 'Month']]
+
+# Example usage:
+#df = load_and_preprocess_data("../data/ID1_prices_germany.csv")

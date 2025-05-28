@@ -1,21 +1,17 @@
-from data_preprocessing import load_and_preprocess_data
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
-import pandas as pd
 
-
+from agent.data_preprocessing import load_and_preprocess_data
 
 class BatteryEnv(gym.Env):
     """Custom Environment for Battery Storage Arbitrage using gymnasium."""
 
-    def __init__(self, data_file="data/ID1_prices_germany.csv"):
+    def __init__(self, environment_df = None):
         super(BatteryEnv, self).__init__()
 
-        print("[INIT] Loading environment data from:", data_file)
 
-        # Load price data from CSV file
-        self.df = load_and_preprocess_data(data_file)
+        self.df = environment_df
 
         # Each step for the agent corresponds to one row of data
         self.max_step = len(self.df) - 1
