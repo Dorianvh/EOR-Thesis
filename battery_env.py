@@ -1,7 +1,9 @@
+from data_preprocessing import load_and_preprocess_data
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
 import pandas as pd
+
 
 
 class BatteryEnv(gym.Env):
@@ -12,13 +14,11 @@ class BatteryEnv(gym.Env):
 
         print("[INIT] Loading environment data from:", data_file)
 
-        # Load hourly data from csv, this will be the external environment
-        df = pd.read_csv(data_file, parse_dates=["Date"])
-        df = df.dropna(subset=["ID1_price"])
-        self.prices = df['ID1_price'].values
+        # Load price data from CSV file
+        self.df = load_and_preprocess_data(data_file)
 
-        # Each step for the agent corresponds to one hour of data
-        self.max_step = len(self.prices) - 1
+        # Each step for the agent corresponds to one row of data
+        self.max_step = len(self.df) - 1
 
         # Battery parameters
         self.battery_capacity = 1.0  # in MWh
@@ -27,65 +27,70 @@ class BatteryEnv(gym.Env):
         self.one_way_efficiency = np.sqrt(self.round_way_efficiency)  # charge/discharge efficiency
         self.soc_min = 0.2  # minimum state of charge
         self.soc_max = 0.8  # maximum state of charge
-        self.invalid_action_penalty = -100.0  # penalty for invalid actions
+        self.invalid_action_penalty = -10.0  # penalty for invalid actions
 
-        # Define observation space: [current_price, state_of_charge]
-        self.observation_space = spaces.Box(low=0, high=np.inf, shape=(2,), dtype=np.float32)
+        # Define observation space: all columns of the DataFrame
+        self.observation_space = spaces.Box(
+            low=-np.inf,
+            high=np.inf,
+            shape=(self.df.shape[1] + 1,),  # Add 1 for the SoC
+            dtype=np.float32
+        )
 
         # Define action space: 0 = charge, 1 = hold, 2 = discharge
         self.action_space = spaces.Discrete(3)
 
-        print("[INIT] Environment initialized with", len(self.prices), "price steps.")
+        #print("[INIT] Environment initialized with", len(self.df), "data steps.")
 
     def reset(self, *, seed=None, options=None):
         """Resets the environment to the starting state."""
-        print("[RESET] Resetting environment...")
+        #print("[RESET] Resetting environment...")
 
         self.step_idx = 0
-        self.soc = self.soc_min  # start with the minimun soc
+        self.soc = self.soc_min  # start with the minimum SoC
         observation = self._get_obs()
         info = {}
 
-        print(f"[RESET] Starting at price: {self.prices[self.step_idx]:.2f}, SoC: {self.soc:.2f}")
+        print(f"[RESET] Starting at step {self.step_idx}, SoC: {self.soc:.2f}")
         return observation, info
 
     def _get_obs(self):
-        """Returns current observation: [price, state of charge]."""
-        return np.array([self.prices[self.step_idx], self.soc], dtype=np.float32)
+        """Returns current observation: all columns of the current row."""
+        current_row = self.df.iloc[self.step_idx].to_numpy(dtype=np.float32)
+        return np.append(current_row, self.soc)
 
     def step(self, action):
         """Takes one step in the environment based on the selected action."""
-        price = self.prices[self.step_idx]
+        price = self.df.iloc[self.step_idx]['ID1_price']
         reward = 0.0
 
-        print(f"[STEP] Step {self.step_idx} | Price: {price:.2f} | SoC: {self.soc:.2f} | Action: {action}")
+        #print(f"[STEP] Step {self.step_idx} | Price: {price:.2f} | SoC: {self.soc:.2f} | Action: {action}")
 
         if action == 0:  # CHARGE
             if self.soc >= self.soc_max:
                 reward = self.invalid_action_penalty
-                print(f"[INVALID ACTION] Cannot charge: SoC is already at maximum, SoC: {self.soc:.2f}, reward: {reward:.2f}")
+                #print(f"[INVALID ACTION] Cannot charge: SoC is already at maximum, SoC: {self.soc:.2f}, reward: {reward:.2f}")
             else:
                 energy = -((self.soc_max - self.soc) / self.one_way_efficiency) * self.battery_capacity
                 cost = energy * price
                 self.soc = self.soc - ((-self.one_way_efficiency * np.abs(energy)) / self.battery_capacity)
                 reward = cost
-                print(f"[ACTION] Charging: bought {energy:.3f} MWh, new SoC: {self.soc:.2f}, reward: {reward:.2f}")
-
+                #print(f"[ACTION] Charging: bought {energy:.3f} MWh, new SoC: {self.soc:.2f}, reward: {reward:.2f}")
 
         elif action == 2:  # DISCHARGE
             if self.soc <= self.soc_min:
                 reward = self.invalid_action_penalty
-                print(f"[INVALID ACTION] Cannot discharge: SoC is already at minimum, SoC: {self.soc:.2f}, reward: {reward:.2f}")
+                #print(f"[INVALID ACTION] Cannot discharge: SoC is already at minimum, SoC: {self.soc:.2f}, reward: {reward:.2f}")
             else:
                 energy = self.one_way_efficiency * (self.soc - self.soc_min) * self.battery_capacity
                 revenue = energy * price
                 self.soc = self.soc - ((np.abs(energy) / self.one_way_efficiency) / self.battery_capacity)
                 reward = revenue
-                print(f"[ACTION] Discharging: sold {energy:.3f} MWh, new SoC: {self.soc:.2f}, reward: {reward:.2f}")
-
+                #print(f"[ACTION] Discharging: sold {energy:.3f} MWh, new SoC: {self.soc:.2f}, reward: {reward:.2f}")
 
         else:
-            print("[ACTION] Hold: no battery action taken.")
+            reward = 0.0
+            #print("[ACTION] Hold: no battery action taken.")
 
         self.step_idx += 1
         done = self.step_idx >= self.max_step

@@ -4,9 +4,9 @@ from datetime import datetime
 
 def get_day_ahead_prices(bidding_zone: str = 'NL', start_date: str = '2025-01-01', end_date: str = '2025-01-31', save_to_csv: bool = True):
     """
-    Fetch day-ahead  prices from the API and return a DataFrame.
+    Fetch day-ahead  prices from the api and return a df.
     """
-    # Make the API request
+    # Make the api request
     url = 'https://api.energy-charts.info/price'
     params = {
         'bzn': bidding_zone,
@@ -16,13 +16,13 @@ def get_day_ahead_prices(bidding_zone: str = 'NL', start_date: str = '2025-01-01
     response = requests.get(url, params=params)
     data = response.json()
 
-    # Convert to DataFrame
+    # Convert to df
     df = pd.DataFrame({
         'timestamp_unix': data['unix_seconds'],
         'price_eur_per_mwh': data['price']
     })
 
-    # Add human-readable timestamp
+    # Add readable timestamp
     df['timestamp'] = pd.to_datetime(df['timestamp_unix'], unit='s')
 
     # Reorder columns
@@ -40,9 +40,9 @@ def get_day_ahead_prices(bidding_zone: str = 'NL', start_date: str = '2025-01-01
 def get_forecast_energy(production_type: str = 'solar', country: str = 'DE', forecast_type: str = 'current', start_date: str = '2025-01-01', end_date: str = '2025-01-31',
                         save_to_csv: bool = True):
     """
-    Fetch forecasted power generation for a given source from the API and return a DataFrame.
+    Fetch forecasted power generation for a given source from the api and return a df.
     """
-    # Make the API request
+    # Make the  request
     url = 'https://api.energy-charts.info/public_power_forecast'
     params = {
         'country': country.lower(),
@@ -53,7 +53,7 @@ def get_forecast_energy(production_type: str = 'solar', country: str = 'DE', for
     }
     response = requests.get(url, params=params)
 
-    # Handle non-JSON or error responses
+    # Check for successful response
     if response.status_code != 200:
         raise ValueError(f"Request failed with status {response.status_code}: {response.text}")
 
@@ -62,13 +62,13 @@ def get_forecast_energy(production_type: str = 'solar', country: str = 'DE', for
     except ValueError:
         raise ValueError("Failed to decode JSON. Response was:\n" + response.text)
 
-    # Convert to DataFrame
+    # Convert to df
     df = pd.DataFrame({
         'timestamp_unix': data['unix_seconds'],
         f'{production_type}_forecast_mw': data['forecast_values']
     })
 
-    # Add human-readable timestamp
+    # Add readable timestamp
     df['timestamp'] = pd.to_datetime(df['timestamp_unix'], unit='s')
 
     # Reorder columns
@@ -82,5 +82,6 @@ def get_forecast_energy(production_type: str = 'solar', country: str = 'DE', for
     return df
 
 
-df = get_forecast_energy(production_type='solar', country='DE', forecast_type='current', save_to_csv=True)
+#df = get_forecast_energy(production_type='solar', country='DE', forecast_type='current', save_to_csv=True)
+df = get_day_ahead_prices(bidding_zone='DE-LU', start_date='2019-01-01', end_date='2025-01-01', save_to_csv=True)
 print(df)

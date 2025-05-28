@@ -12,12 +12,15 @@ model = DQN(
     env=env,
     verbose=1,
     learning_rate=1e-3,
-    buffer_size=10000,
+    buffer_size=100000,
     learning_starts=1000,
-    batch_size=32,
-    gamma=0.95,
+    batch_size=64,
+    gamma=0.99,
     target_update_interval=250,
-    tensorboard_log="./tensorboard_logs/"
+    tensorboard_log="./tensorboard_logs/",
+    exploration_fraction=0.1,  # Increase exploration duration
+    exploration_initial_eps=1.0,  # Start with full exploration
+    exploration_final_eps=0.01  # Ensure some exploration remains
 )
 
 print("[TRAINING] Defining evaluation callback...")
@@ -25,13 +28,14 @@ eval_callback = EvalCallback(
     eval_env,
     best_model_save_path='./models/',
     log_path='./logs/',
-    eval_freq=5000,
+    eval_freq=10000,
+    n_eval_episodes=1,
     deterministic=True,
     render=False
 )
 
 print("[TRAINING] Starting training...")
-model.learn(total_timesteps=500, callback=eval_callback)
+model.learn(total_timesteps=100000, callback=eval_callback)
 
 print("[TRAINING] Training complete. Saving model...")
 model.save("dqn_battery")
