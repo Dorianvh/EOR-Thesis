@@ -38,6 +38,6 @@ print("[TRAINING] Starting training...")
 model.learn(total_timesteps=1000000, callback=eval_callback)
 
 print("[TRAINING] Training complete. Saving model...")
-model.save("dqn_battery")
+model.save("./models/dqn_battery")
 
 print("[TRAINING] Model saved as 'dqn_battery.zip'")
