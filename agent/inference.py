@@ -35,10 +35,10 @@ def main():
     # Using 2024 data instead of 2023 data
     data_path = "../data/preprocessed_data_2023.csv"
     print(f"Loading inference data from {data_path}")
-    environment_df = pd.read_csv(data_path)
+    df = pd.read_csv(data_path)
 
     # 3) Create environment with the new data
-    env = BatteryEnv(environment_df)
+    env = BatteryEnv(df)
 
     # 4) Load model into the environment with new data
     model = DQN.load(model_path, env=env)
@@ -47,9 +47,9 @@ def main():
     actions, rewards, info = run_episode(env, model)
 
     # 6) Process results
-    df = pd.read_csv(data_path)
+
     # Adjust to match your dataset columns
-    df.columns = ["ID1_price", "Hour", "DayOfWeek", "Month"]
+    df = df[["ID1_price_rolling_z_score", "Hour", "DayOfWeek", "Month"]]
 
     # Ensure the results only cover the steps we've taken
     result_df = df.iloc[:len(actions)].reset_index(drop=True)
