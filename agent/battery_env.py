@@ -2,19 +2,20 @@ import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
 
-from agent.data_preprocessing import load_and_preprocess_data
-
 class BatteryEnv(gym.Env):
     """Custom Environment for Battery Storage Arbitrage using gymnasium."""
 
     def __init__(self, environment_df = None):
         super(BatteryEnv, self).__init__()
 
+        # Save price column for reward calculation
+        self.prices = environment_df['ID1_price']
 
-        self.df = environment_df
+        # select only the columns in the observation space
+        self.observations_df = environment_df[['ID1_price_rolling_z_score', 'Hour', 'DayOfWeek', 'Month']]
 
         # Each step for the agent corresponds to one row of data
-        self.max_step = len(self.df) - 1
+        self.max_step = len(self.observations_df) - 1
 
         # Battery parameters
         self.battery_capacity = 1.0  # in MWh
@@ -29,7 +30,7 @@ class BatteryEnv(gym.Env):
         self.observation_space = spaces.Box(
             low=-np.inf,
             high=np.inf,
-            shape=(self.df.shape[1] + 1,),  # Add 1 for the SoC
+            shape=(self.observations_df.shape[1] + 1,),  # Add 1 for the SoC
             dtype=np.float32
         )
 
@@ -52,12 +53,12 @@ class BatteryEnv(gym.Env):
 
     def _get_obs(self):
         """Returns current observation: all columns of the current row."""
-        current_row = self.df.iloc[self.step_idx].to_numpy(dtype=np.float32)
+        current_row = self.observations_df.iloc[self.step_idx].to_numpy(dtype=np.float32)
         return np.append(current_row, self.soc)
 
     def step(self, action):
         """Takes one step in the environment based on the selected action."""
-        price = self.df.iloc[self.step_idx]['ID1_price']
+        price = self.prices.iloc[self.step_idx]
         reward = 0.0
 
         #print(f"[STEP] Step {self.step_idx} | Price: {price:.2f} | SoC: {self.soc:.2f} | Action: {action}")

@@ -28,7 +28,7 @@ def run_episode(env: gym.Env, model: DQN):
 
 def main():
     # 1) Load trained model
-    model_path = "../models/dqn_battery_34.zip"
+    model_path = "models/dqn_battery_34.zip"
     print(f"Loading model from {model_path}")
 
     # 2) Use a different dataset for inference
