@@ -56,7 +56,7 @@ def train():
     print("[TRAINING] Training complete. Saving model...")
     model.save("./models/dqn_battery")
 
-    print("[TRAINING] Model saved as 'dqn_battery.zip'")
+    print("[TRAINING] Model saved as 'dqn_battery_49.zip'")
 
 if __name__ == '__main__':
     multiprocessing.freeze_support()  # Needed for Windows
