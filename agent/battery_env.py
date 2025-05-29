@@ -12,7 +12,7 @@ class BatteryEnv(gym.Env):
         self.prices = environment_df['ID1_price']
 
         # select only the columns in the observation space
-        self.observations_df = environment_df[['ID1_price_rolling_z_score', 'Hour', 'DayOfWeek', 'Month']]
+        self.observations_df = environment_df[['ID1_price', 'Hour', 'DayOfWeek', 'Month']]
 
         # Each step for the agent corresponds to one row of data
         self.max_step = len(self.observations_df) - 1

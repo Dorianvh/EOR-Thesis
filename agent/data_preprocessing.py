@@ -45,6 +45,10 @@ def load_and_preprocess_data(file_path):
     # Fill NaN values in rolling z-score with 0
     df['ID1_price_rolling_z_score'].fillna(0, inplace=True)
 
+    # Add column with 1 if price is positive, else 0
+    df['ID1_price_positive'] = (df['ID1_price'] > 0).astype(int)
+
+
 
 
 
