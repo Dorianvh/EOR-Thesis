@@ -5,14 +5,14 @@ import numpy as np
 class BatteryEnv(gym.Env):
     """Custom Environment for Battery Storage Arbitrage using gymnasium."""
 
-    def __init__(self, environment_df = None):
+    def __init__(self, environment_df = None, feature_columns=None):
         super(BatteryEnv, self).__init__()
 
         # Save price column for reward calculation
         self.prices = environment_df['ID1_price']
 
         # select only the columns in the observation space
-        self.observations_df = environment_df[['ID1_price', 'Hour', 'DayOfWeek', 'Month']]
+        self.observations_df = environment_df[feature_columns]
 
         # Each step for the agent corresponds to one row of data
         self.max_step = len(self.observations_df) - 1
