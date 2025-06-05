@@ -1,0 +1,14 @@
+policy: MlpPolicy
+learning_rate: 0.001
+buffer_size: 374165
+learning_starts: 14000
+batch_size: 64
+gamma: 0.99
+target_update_interval: 935
+gradient_steps: 14
+exploration_fraction: 0.1
+exploration_initial_eps: 1.0
+exploration_final_eps: 0.01
+num_envs: 14
+total_timesteps: 2000000
+feature_columns: ['ID1_price', 'Hour', 'DayOfWeek', 'Month']
