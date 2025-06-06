@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import gymnasium as gym
+from pyexpat import features
 from stable_baselines3 import DQN
 import os
 
@@ -28,17 +29,18 @@ def run_episode(env: gym.Env, model: DQN):
 
 def main():
     # 1) Load trained model
-    model_path = "models/dqn_battery_34.zip"
+    model_path = "training_runs/run_3/best_model.zip"
     print(f"Loading model from {model_path}")
 
     # 2) Use a different dataset for inference
     # Using 2024 data instead of 2023 data
-    data_path = "../data/preprocessed_data_2023.csv"
+    data_path = "../data/preprocessed_data_2024.csv"
     print(f"Loading inference data from {data_path}")
     df = pd.read_csv(data_path)
 
+    feature_cols = ["ID1_price", "Hour", "DayOfWeek", "Month",]
     # 3) Create environment with the new data
-    env = BatteryEnv(df)
+    env = BatteryEnv(df, feature_cols)
 
     # 4) Load model into the environment with new data
     model = DQN.load(model_path, env=env)
@@ -49,7 +51,7 @@ def main():
     # 6) Process results
 
     # Adjust to match your dataset columns
-    df = df[["ID1_price_rolling_z_score", "Hour", "DayOfWeek", "Month"]]
+    df = df[["ID1_price", "Hour", "DayOfWeek", "Month"]]
 
     # Ensure the results only cover the steps we've taken
     result_df = df.iloc[:len(actions)].reset_index(drop=True)
@@ -62,9 +64,9 @@ def main():
     result_df["cumulative_reward"] = np.cumsum(rewards)
 
     # 7) Save to CSV
-    output_path = "../data/inference_results_2023.csv"
+    output_path = "../data/inference_results_2024.csv"
     result_df.to_csv(output_path, index=False)
-    print(f"✅ Inference complete. Saved to {output_path}")
+    print(f" Inference complete. Saved to {output_path}")
     print(f"Total reward: {sum(rewards):.2f}")
 
     # 8) Display summary statistics - using the converted actions list
