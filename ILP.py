@@ -59,19 +59,45 @@ m.setObjective(profit, GRB.MAXIMIZE)
 
 m.optimize()
 
-
 if m.status == GRB.OPTIMAL:
     print(f"\n Optimal profit: €{m.objVal:.2f}\n")
     print("t   Action       Price     SoC")
     print("===============================")
-    for t in range(min(50, T)):
+
+    # Create lists to store data for CSV
+    data = []
+
+    for t in range(T):
         soc_level = soc_high if is_high[t].X > 0.5 else soc_low
         if charge[t].X > 0.5:
             action = "CHARGE"
+            # Calculate profit for charging (negative)
+            step_profit = -prices[t] * delta_soc / np.sqrt(eta)
         elif discharge[t].X > 0.5:
             action = "DISCHARGE"
+            # Calculate profit for discharging (positive)
+            step_profit = prices[t] * delta_soc * np.sqrt(eta)
         else:
             action = "IDLE"
-        print(f"{t:2d}  {action:<10} €{prices[t]:>6.2f}   SoC = {soc_level:.1f}")
+            step_profit = 0
+
+        # Append data for this time step
+        data.append({
+            'time_step': t,
+            'action': action,
+            'price': prices[t],
+            'soc': soc_level,
+            'reward': step_profit
+        })
+
+    # Create DataFrame
+    results_df = pd.DataFrame(data)
+
+    # Calculate cumulative profit
+    results_df['cumulative_reward'] = results_df['reward'].cumsum()
+
+    # Save to CSV
+    results_df.to_csv('ILP_results_2024.csv', index=False)
+
 else:
     print(" No feasible solution found.")

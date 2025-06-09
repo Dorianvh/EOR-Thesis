@@ -63,6 +63,7 @@ def main():
     result_df["reward"] = rewards
     result_df["cumulative_reward"] = np.cumsum(rewards)
 
+
     # 7) Save to CSV
     output_path = "../data/inference_results_2024.csv"
     result_df.to_csv(output_path, index=False)
