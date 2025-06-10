@@ -82,11 +82,11 @@ rmse = train_armax_forecast_with_plot(
     df=df,
     endog_col='ID1_price_eur_per_mwh',
     exog_cols=['solar_forecast_mw', 'wind_onshore_forecast_mw', 'wind_offshore_forecast_mw', 'DA_price_eur_per_mwh'],
-    forecast_horizon=24,
+    forecast_horizon=3,
     lags=0,
     train_split=0.8,
-    ar_order=2,
-    ma_order=2
+    ar_order=1,
+    ma_order=1
 )
 
 print(f"Model RMSE: {rmse:.2f} €/MWh")
