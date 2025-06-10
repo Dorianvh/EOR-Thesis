@@ -101,7 +101,7 @@ def train(env_df, feature_columns):
     )
 
     # Total timesteps for training
-    total_timesteps = 10000
+    total_timesteps = 5000000
 
     # Save hyperparameters before training
     save_hyperparameters(run_dir, hyperparams, total_timesteps, feature_columns)
@@ -124,6 +124,8 @@ if __name__ == '__main__':
     env_df = pd.read_csv("../data/preprocessed_data_2023.csv")
 
     # Columns in env df that contain the features for the agent
-    feature_columns = ['ID1_price']
+    #feature_columns = ['ID1_price']
+    feature_columns = ['ID1_price', 'Hour', 'DayOfWeek', 'Month']
+    #feature_columns = ['ID1_price_rolling_z_score', 'Hour', 'DayOfWeek', 'Month']
 
     train(env_df, feature_columns)

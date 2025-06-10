@@ -1,7 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-df = pd.read_csv('data/day_ahead_prices_DE-LU_2019-01-01_2025-01-01.csv')
+df = pd.read_csv('data/day_ahead_prices_DE-LU_2018-01-01_2025-01-01.csv')
 
 df['timestamp'] = pd.to_datetime(df['timestamp'])
 

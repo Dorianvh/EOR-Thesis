@@ -31,7 +31,7 @@ def get_day_ahead_prices(bidding_zone: str = 'NL', start_date: str = '2025-01-01
     if save_to_csv:
         # Save to CSV
         filename = f"day_ahead_prices_{bidding_zone}_{start_date}_{end_date}.csv"
-        df.to_csv(f"data/{filename}", index=False)
+        df.to_csv(f"../data/{filename}", index=False)
         print(f"Data saved to {filename}")
 
     return df
@@ -40,7 +40,7 @@ def get_day_ahead_prices(bidding_zone: str = 'NL', start_date: str = '2025-01-01
 def get_forecast_energy(production_type: str = 'solar', country: str = 'DE', forecast_type: str = 'current', start_date: str = '2025-01-01', end_date: str = '2025-01-31',
                         save_to_csv: bool = True):
     """
-    Fetch forecasted power generation for a given source from the api and return a df.
+    Fetch forecasted power generation for a given source from the api and return a df
     """
     # Make the  request
     url = 'https://api.energy-charts.info/public_power_forecast'
@@ -76,12 +76,12 @@ def get_forecast_energy(production_type: str = 'solar', country: str = 'DE', for
 
     if save_to_csv:
         filename = f"forecast_{production_type}_{country}_{start_date}_{end_date}_{forecast_type}.csv"
-        df.to_csv(f"data/{filename}", index=False)
+        df.to_csv(f"../data/{filename}", index=False)
         print(f"Data saved to {filename}")
 
     return df
 
 
 #df = get_forecast_energy(production_type='solar', country='DE', forecast_type='current', save_to_csv=True)
-df = get_day_ahead_prices(bidding_zone='DE-LU', start_date='2019-01-01', end_date='2025-01-01', save_to_csv=True)
-print(df)
+#df = get_day_ahead_prices(bidding_zone='DE-LU', start_date='2018-01-01', end_date='2025-01-01', save_to_csv=True)
+#print(df)
