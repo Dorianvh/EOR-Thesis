@@ -26,7 +26,8 @@ def deseasonalize_data(df, date_col, y_col, plot = False):
         model.plot_components(forecast)
         plt.show()
 
-    print(df_prophet)
+    # Rename columns back to original names
+    df_prophet = df_prophet.rename(columns={'ds': date_col,'y': y_col})
 
     return df_prophet
 
