@@ -3,7 +3,7 @@ import pandas as pd
 from utils.api_connector import *
 
 start_date = '2023-01-01'
-end_date = '2023-12-31'
+end_date = '2024-12-31'
 country = 'DE'
 forecast_type = 'day-ahead'
 
@@ -45,7 +45,7 @@ load_forecast = combine_quarter_hourly_to_hourly(load_forecast)
 da_prices = get_day_ahead_prices(bidding_zone='DE-LU', start_date=start_date, end_date=end_date, save_to_csv=False)
 
 # merge all dataframes on timestamp dont keep the timestamp_unix column
-df = df[['timestamp', 'ID1_price_eur_per_mwh)']]  # Keep only relevant columns
+
 df = df.merge(solar_forecast, on='timestamp', how='left')
 df = df.merge(wind_onshore_forecast, on='timestamp', how='left')
 df = df.merge(wind_offshore_forecast, on='timestamp', how='left')
