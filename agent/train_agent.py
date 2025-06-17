@@ -7,6 +7,7 @@ from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.env_util import make_vec_env
 from battery_env import BatteryEnv
+import json
 
 
 def create_run_directory():
@@ -35,7 +36,10 @@ def save_hyperparameters(run_dir, hyperparams, total_timesteps, feature_columns)
     # Save as a formatted text file
     with open(f"{run_dir}/hyperparameters.txt", "w") as f:
         for key, value in params_dict.items():
-            f.write(f"{key}: {value}\n")
+            if isinstance(value, dict):
+                f.write(f"{key}: {json.dumps(value, indent=2)}\n")
+            else:
+                f.write(f"{key}: {value}\n")
 
 
 def train(env_df, feature_columns):
@@ -45,37 +49,55 @@ def train(env_df, feature_columns):
     print(f"[TRAINING] Saving all results to: {run_dir}")
 
     # Create a vectorized environment with multiple parallel environments
-    num_envs = 14  # Adjust based on your CPU cores
+    num_envs = 10  # Adjust based on your CPU cores
     env = make_vec_env(
         lambda: BatteryEnv(env_df,feature_columns),
         n_envs=num_envs,
         vec_env_cls=SubprocVecEnv  # Use SubprocVecEnv for true parallelism
     )
 
-    # For evaluation, we can use a single environment
-    eval_env = make_vec_env(lambda: BatteryEnv(env_df, feature_columns), n_envs=1)
+    eval_env = make_vec_env(
+        lambda: BatteryEnv(env_df, feature_columns),
+        n_envs=1,
+        vec_env_cls=SubprocVecEnv  # Match the training environment type
+    )
 
     print("[TRAINING] Creating DQN model...")
+
+    # Define the neural network architecture
+    net_arch = {
+        "type": "MLP",
+        "layers": [512, 256, 128],  # Two hidden layers with 256 neurons each (doubled)
+        "activation": "ReLU"
+    }
+
     # Store hyperparameters for later saving
     hyperparams = {
         "policy": "MlpPolicy",
-        "learning_rate": 1e-3,
-        "buffer_size": int(100000 * (num_envs ** 0.5)),
+        "network_architecture": net_arch,
+        "learning_rate": 1e-3,  # Reduced learning rate to allow for finer convergence
+        "buffer_size": int(10000 * (num_envs ** 0.5)),
         "learning_starts": 1000 * num_envs,
-        "batch_size": 64,
+        "batch_size": 32,  # Increased batch size for better gradient estimates
         "gamma": 0.99,
         "target_update_interval": int(250 * (num_envs ** 0.5)),
         "gradient_steps": num_envs,
-        "exploration_fraction": 0.1,
+        "exploration_fraction": 0.2,  # Increased exploration to help escape local minima
         "exploration_initial_eps": 1.0,
         "exploration_final_eps": 0.01,
         "num_envs": num_envs
     }
 
+    # Define policy keyword arguments to specify the network architecture
+    policy_kwargs = dict(
+        net_arch=net_arch["layers"]
+    )
+
     model = DQN(
         policy=hyperparams["policy"],
         env=env,
         verbose=1,
+        policy_kwargs=policy_kwargs,
         learning_rate=hyperparams["learning_rate"],
         buffer_size=hyperparams["buffer_size"],
         learning_starts=hyperparams["learning_starts"],
@@ -101,7 +123,7 @@ def train(env_df, feature_columns):
     )
 
     # Total timesteps for training
-    total_timesteps = 5000000
+    total_timesteps = 1000000
 
     # Save hyperparameters before training
     save_hyperparameters(run_dir, hyperparams, total_timesteps, feature_columns)
@@ -121,11 +143,11 @@ if __name__ == '__main__':
     multiprocessing.freeze_support()  # Needed for Windows
 
     # Load the environment data from csv
-    env_df = pd.read_csv("../data/preprocessed_data_2023.csv")
+    env_df = pd.read_csv("../data/scaled_data_2023.csv")
 
     # Columns in env df that contain the features for the agent
     #feature_columns = ['ID1_price']
     feature_columns = ['ID1_price', 'Hour', 'DayOfWeek', 'Month']
-    #feature_columns = ['ID1_price_rolling_z_score', 'Hour', 'DayOfWeek', 'Month']
+    #feature_columns = ['ID1_price_scaled','ARMAX_forecast_1hour_scaled', 'ARMAX_forecast_3hour_scaled', 'Hour', 'DayOfWeek', 'Month']
 
     train(env_df, feature_columns)
