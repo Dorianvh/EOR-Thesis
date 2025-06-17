@@ -63,6 +63,9 @@ class BatteryEnv(gym.Env):
         price = self.prices.iloc[self.step_idx]
         reward = 0.0
 
+        assert np.all(np.isfinite(self._get_obs())), f"Invalid obs at step {self.step_idx}: {self._get_obs()}"
+        assert np.isfinite(reward), f"Invalid reward at step {self.step_idx}: {reward}"
+
         #print(f"[STEP] Step {self.step_idx} | Price: {price:.2f} | SoC: {self.soc:.2f} | Action: {action}")
 
         if action == 0:  # CHARGE

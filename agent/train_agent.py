@@ -6,6 +6,7 @@ from stable_baselines3 import DQN
 from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.env_util import make_vec_env
+from stable_baselines3.common.vec_env import VecNormalize
 from battery_env import BatteryEnv
 import json
 
@@ -44,54 +45,52 @@ def save_hyperparameters(run_dir, hyperparams, total_timesteps, feature_columns)
 
 def train(env_df, feature_columns):
     """Train the DQN agent on the battery environment."""
-    # Create a unique directory for this run
     run_dir = create_run_directory()
     print(f"[TRAINING] Saving all results to: {run_dir}")
 
-    # Create a vectorized environment with multiple parallel environments
-    num_envs = 10  # Adjust based on your CPU cores
-    env = make_vec_env(
-        lambda: BatteryEnv(env_df,feature_columns),
+    num_envs = 10
+
+    # Base vectorized envs
+    base_env = make_vec_env(
+        lambda: BatteryEnv(env_df, feature_columns),
         n_envs=num_envs,
-        vec_env_cls=SubprocVecEnv  # Use SubprocVecEnv for true parallelism
+        vec_env_cls=SubprocVecEnv
     )
 
-    eval_env = make_vec_env(
+    base_eval_env = make_vec_env(
         lambda: BatteryEnv(env_df, feature_columns),
         n_envs=1,
-        vec_env_cls=SubprocVecEnv  # Match the training environment type
+        vec_env_cls=SubprocVecEnv
     )
 
-    print("[TRAINING] Creating DQN model...")
+    # Wrap with VecNormalize for observation normalization
+    env = VecNormalize(base_env, norm_obs=True, norm_reward=False)
+    eval_env = VecNormalize(base_eval_env, norm_obs=True, norm_reward=True)
 
-    # Define the neural network architecture
+    # Same as before
     net_arch = {
         "type": "MLP",
-        "layers": [512, 256, 128],  # Two hidden layers with 256 neurons each (doubled)
+        "layers": [64,64],
         "activation": "ReLU"
     }
 
-    # Store hyperparameters for later saving
     hyperparams = {
         "policy": "MlpPolicy",
         "network_architecture": net_arch,
-        "learning_rate": 1e-3,  # Reduced learning rate to allow for finer convergence
+        "learning_rate": 1e-4,
         "buffer_size": int(10000 * (num_envs ** 0.5)),
         "learning_starts": 1000 * num_envs,
-        "batch_size": 32,  # Increased batch size for better gradient estimates
+        "batch_size": 32,
         "gamma": 0.99,
         "target_update_interval": int(250 * (num_envs ** 0.5)),
         "gradient_steps": num_envs,
-        "exploration_fraction": 0.2,  # Increased exploration to help escape local minima
+        "exploration_fraction": 0.1,
         "exploration_initial_eps": 1.0,
         "exploration_final_eps": 0.01,
         "num_envs": num_envs
     }
 
-    # Define policy keyword arguments to specify the network architecture
-    policy_kwargs = dict(
-        net_arch=net_arch["layers"]
-    )
+    policy_kwargs = dict(net_arch=net_arch["layers"])
 
     model = DQN(
         policy=hyperparams["policy"],
@@ -114,28 +113,26 @@ def train(env_df, feature_columns):
     print("[TRAINING] Defining evaluation callback...")
     eval_callback = EvalCallback(
         eval_env,
-        best_model_save_path=run_dir,  # Save directly in run directory
-        log_path=run_dir,  # Save logs directly in run directory
-        eval_freq=10000 // num_envs,  # Adjust for vectorized environment
+        best_model_save_path=run_dir,
+        log_path=run_dir,
+        eval_freq=10000 // num_envs,
         n_eval_episodes=1,
         deterministic=True,
         render=False
     )
 
-    # Total timesteps for training
     total_timesteps = 1000000
-
-    # Save hyperparameters before training
     save_hyperparameters(run_dir, hyperparams, total_timesteps, feature_columns)
 
     print("[TRAINING] Starting training")
     model.learn(total_timesteps=total_timesteps, callback=eval_callback)
 
-    # Save the final model
+    # Save model and VecNormalize statistics
     final_model_path = f"{run_dir}/final_model"
     model.save(final_model_path)
+    env.save(os.path.join(run_dir, "vecnormalize.pkl"))
     print(f"[TRAINING] Final model saved to {final_model_path}")
-
+    print(f"[TRAINING] VecNormalize statistics saved to {run_dir}/vecnormalize.pkl")
     print(f"[TRAINING] Training complete. All results saved to {run_dir}")
 
 
@@ -147,7 +144,8 @@ if __name__ == '__main__':
 
     # Columns in env df that contain the features for the agent
     #feature_columns = ['ID1_price']
-    feature_columns = ['ID1_price', 'Hour', 'DayOfWeek', 'Month']
-    #feature_columns = ['ID1_price_scaled','ARMAX_forecast_1hour_scaled', 'ARMAX_forecast_3hour_scaled', 'Hour', 'DayOfWeek', 'Month']
+    feature_columns = ['ID1_price', 'Hour', 'DayOfWeek', 'Month',
+                       'ARMAX_forecast_1hour', 'ARMAX_forecast_3hour']
+    #feature_columns = ['ID1_price_scaled','ARMAX_forecast_1hour_scaled', 'ARMAX_forecast_3hour_scaled']
 
     train(env_df, feature_columns)
