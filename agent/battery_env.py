@@ -48,13 +48,15 @@ class BatteryEnv(gym.Env):
         observation = self._get_obs()
         info = {}
 
-        print(f"[RESET] Starting at step {self.step_idx}, SoC: {self.soc:.2f}")
+        #print(f"[RESET] Starting at step {self.step_idx}, SoC: {self.soc:.2f}")
         return observation, info
 
     def _get_obs(self):
         """Returns current observation: all columns of the current row."""
         current_row = self.observations_df.iloc[self.step_idx].to_numpy(dtype=np.float32)
-        return np.append(current_row, self.soc)
+        # Return Soc as 0 when low and 1 when high
+        soc_binary = 0.0 if self.soc < self.soc_max else 1.0
+        return np.append(current_row, soc_binary)
 
     def step(self, action):
         """Takes one step in the environment based on the selected action."""
