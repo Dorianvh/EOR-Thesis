@@ -4,10 +4,10 @@ import matplotlib.pyplot as plt
 from forecasting.deseasonalize import deseasonalize_data
 
 df = pd.read_csv("../data/preprocessed_data_2023.csv")
+df['Date'] = pd.to_datetime(df['Date'])
 
+#df = deseasonalize_data(df, 'Date', 'ID1_price')
 
-df = deseasonalize_data(df, 'Date', 'ID1_price')
-print(df)
 # check for stationarity
 
 def check_stationarity(df, column):
@@ -34,16 +34,16 @@ def check_stationarity(df, column):
     # KPSS test: p-value > 0.05 indicates stationarity
     return adf_p_value < 0.05 and kpss_p_value > 0.05
 
-is_stationary = check_stationarity(df, 'y')
+is_stationary = check_stationarity(df, 'ID1_price')
 if is_stationary:
     print("The time series is stationary.")
 else:
     print("The time series is not stationary. Consider differencing or transformation.")
 
 # Plot the deseasonalized, and original data
-plt.figure(figsize=(12, 6))
-plt.plot(df['ds'], df['y'], label='Original Data', color='blue')
-plt.plot(df['ds'], df['deseasonalized_remainder'], label='Deseasonalized Data', color='orange')
+#plt.figure(figsize=(12, 6))
+#plt.plot(df['Date'], df['ID1_price'], label='Original Data', color='blue')
+#plt.plot(df['Date'], df['deseasonalized_remainder'], label='Deseasonalized Data', color='orange')
 
 plt.ylabel('Price')
 plt.title('Original vs Deseasonalized Data')
