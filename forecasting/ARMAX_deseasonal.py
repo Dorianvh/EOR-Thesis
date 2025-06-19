@@ -4,6 +4,7 @@ from statsmodels.tsa.statespace.sarimax import SARIMAX
 from sklearn.metrics import mean_squared_error
 import numpy as np
 from deseasonalize import deseasonalize_data
+from outlier_detection import remove_outliers
 import os
 from datetime import datetime
 
@@ -18,7 +19,7 @@ CONFIG = {
     'date_col': 'timestamp',
 
     # Model parameters
-    'forecast_horizon': 6,  # forecast hours ahead
+    'forecast_horizon': 3,  # forecast hours ahead
     'lags': 1,              # number of autoregressive lags
     'ar_order': 1,          # AR order for ARMAX
     'ma_order': 1,          # MA order for ARMAX
@@ -37,8 +38,17 @@ def preprocess_data(file_path):
     df = pd.read_csv(file_path)
     df['timestamp'] = pd.to_datetime(df['timestamp'])
     df = df.drop_duplicates(subset='timestamp')
+    df = remove_outliers(df, 'timestamp', CONFIG['target_col'], threshold=10, plot=CONFIG['plot_results'])
+
     df.set_index('timestamp', inplace=True)
     df = df.asfreq('h').ffill()
+
+    # remove outliers
+
+
+    # only save 2023 data
+    #df = df[df.index.year == 2023]
+
     return df
 
 # Deseasonalize series using existing routine
