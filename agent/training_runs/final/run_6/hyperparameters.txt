@@ -1,0 +1,23 @@
+policy: MlpPolicy
+network_architecture: {
+  "type": "MLP",
+  "layers": [
+    128,
+    64,
+    64
+  ],
+  "activation": "ReLU"
+}
+learning_rate: 0.001
+buffer_size: 316227
+learning_starts: 10000
+batch_size: 64
+gamma: 0.99
+target_update_interval: 790
+gradient_steps: 10
+exploration_fraction: 0.1
+exploration_initial_eps: 1.0
+exploration_final_eps: 0.01
+num_envs: 10
+total_timesteps: 1000000
+feature_columns: ['ID1_price', 'Hour', 'DayOfWeek', 'Month', 'ARMAX_forecast_1hour', 'ARMAX_forecast_3hour']
