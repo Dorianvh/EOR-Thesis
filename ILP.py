@@ -3,7 +3,7 @@ import numpy as np
 import gurobipy as gp
 from gurobipy import GRB
 
-df = pd.read_csv('data/preprocessed_data_2024.csv')
+df = pd.read_csv('data/preprocessed_data_2023.csv')
 prices = df['ID1_price']
 T = len(prices)
 
@@ -97,7 +97,7 @@ if m.status == GRB.OPTIMAL:
     results_df['cumulative_reward'] = results_df['reward'].cumsum()
 
     # Save to CSV
-    results_df.to_csv('ILP_results_2024.csv', index=False)
+    results_df.to_csv('ILP_results_2023.csv', index=False)
 
 else:
     print(" No feasible solution found.")

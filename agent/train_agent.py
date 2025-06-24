@@ -14,7 +14,7 @@ import json
 def create_run_directory():
     """Create a uniquely numbered directory for this training run."""
     # Find the next run number by checking existing directories
-    runs_base_dir = "./training_runs"
+    runs_base_dir = "./training_runs/final"
     os.makedirs(runs_base_dir, exist_ok=True)
 
     existing_runs = glob.glob(f"{runs_base_dir}/run_*")
@@ -70,17 +70,17 @@ def train(env_df, feature_columns):
     # Same as before
     net_arch = {
         "type": "MLP",
-        "layers": [64,64],
+        "layers": [128,64,64],
         "activation": "ReLU"
     }
 
     hyperparams = {
         "policy": "MlpPolicy",
         "network_architecture": net_arch,
-        "learning_rate": 1e-4,
-        "buffer_size": int(10000 * (num_envs ** 0.5)),
+        "learning_rate": 1e-3,
+        "buffer_size": int(100000 * (num_envs ** 0.5)),
         "learning_starts": 1000 * num_envs,
-        "batch_size": 32,
+        "batch_size": 64,
         "gamma": 0.99,
         "target_update_interval": int(250 * (num_envs ** 0.5)),
         "gradient_steps": num_envs,
@@ -140,12 +140,11 @@ if __name__ == '__main__':
     multiprocessing.freeze_support()  # Needed for Windows
 
     # Load the environment data from csv
-    env_df = pd.read_csv("../data/scaled_data_2023.csv")
+    env_df = pd.read_csv("../data/preprocessed_data_2023.csv")
 
     # Columns in env df that contain the features for the agent
     #feature_columns = ['ID1_price']
-    feature_columns = ['ID1_price', 'Hour', 'DayOfWeek', 'Month',
-                       'ARMAX_forecast_1hour', 'ARMAX_forecast_3hour']
+    feature_columns = ['ID1_price', 'Hour', 'DayOfWeek', 'Month', 'ARMAX_forecast_6hour', 'ARMAX_forecast_12hour', 'ARMAX_forecast_24hour']
     #feature_columns = ['ID1_price_scaled','ARMAX_forecast_1hour_scaled', 'ARMAX_forecast_3hour_scaled']
 
     train(env_df, feature_columns)

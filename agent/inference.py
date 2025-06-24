@@ -38,17 +38,17 @@ def run_episode(env, model: DQN):
 
 def main():
     # 1) Load trained model
-    model_dir = "training_runs/final/run_4"
+    model_dir = "training_runs/final/run_7"
     model_path = f"{model_dir}/best_model.zip"
     norm_path = f"{model_dir}/vecnormalize.pkl"
     print(f"Loading model from {model_path}")
 
     # 2) Use a different dataset for inference
-    data_path = "../data/preprocessed_data_2024.csv"
+    data_path = "../data/preprocessed_data_2023.csv"
     print(f"Loading inference data from {data_path}")
     df = pd.read_csv(data_path)
 
-    feature_cols = ['ID1_price', 'Hour', 'DayOfWeek', 'Month', 'ARMAX_forecast_1hour', 'ARMAX_forecast_3hour', 'ARMAX_forecast_6hour', 'ARMAX_forecast_12hour', 'ARMAX_forecast_24hour']
+    feature_cols = ['ID1_price', 'Hour', 'DayOfWeek', 'Month', 'ARMAX_forecast_6hour', 'ARMAX_forecast_12hour', 'ARMAX_forecast_24hour']
     # 3) Create environment with the new data
     env = BatteryEnv(df, feature_cols)
 
@@ -82,7 +82,7 @@ def main():
     result_df["cumulative_reward"] = np.cumsum(rewards)
 
     # 8) Save to CSV
-    output_path = f"{model_dir}/inference_results.csv"
+    output_path = f"{model_dir}/inference_results_in_sample.csv"
     result_df.to_csv(output_path, index=False)
     print(f"Inference complete. Saved to {output_path}")
     print(f"Total reward: {sum(rewards):.2f}")
