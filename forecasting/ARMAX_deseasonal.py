@@ -6,31 +6,43 @@ import numpy as np
 from deseasonalize import deseasonalize_data
 from outlier_detection import remove_outliers
 import os
+
+import itertools
 from datetime import datetime
 
 # Configuration - All parameters defined in one place
 CONFIG = {
     # Input and output
     'input_file': '../data/combined_energy_data.csv',
-    'output_file': '../data/ID1_price_forecast_6hour.csv',
+    'output_file': '../data/ID1_price_forecast_1hour.csv',
+
+
 
     # Target variable
     'target_col': 'ID1_price_eur_per_mwh',
     'date_col': 'timestamp',
 
     # Model parameters
-    'forecast_horizon': 3,  # forecast hours ahead
-    'lags': 1,              # number of autoregressive lags
-    'ar_order': 1,          # AR order for ARMAX
-    'ma_order': 1,          # MA order for ARMAX
+    'forecast_horizon': 24,  # forecast hours ahead
+    'lags': 2,              # number of autoregressive lags
+    'ar_order': 0,          # AR order for ARMAX
+    'ma_order': 0,          # MA order for ARMAX
     'train_split': 0.5,     # portion of data for training
+
+    # Grid search parameters
+    'grid_search': False,    # whether to perform grid search
+    'grid_params': {
+        'lags': [0, 1, 2, 3, 4],
+        'ar_order': [0, 1, 2, 3, 4],
+        'ma_order': [0, 1, 2, 3, 4]
+    },
 
     # Exogenous variables
     'exog_cols': ['solar_forecast_mw', 'wind_onshore_forecast_mw',
                   'wind_offshore_forecast_mw', 'DA_price_eur_per_mwh'],
 
     # Visualization
-    'plot_results': False,  # whether to show plots
+    'plot_results': True,  # whether to show plots
 }
 
 # Preprocess to hourly series
@@ -88,10 +100,25 @@ def evaluate_deseasonalized(test_df, forecast_rem, y_col, plot=False):
     actual = test_df[y_col]
     rmse = np.sqrt(mean_squared_error(actual, forecast_full))
     if plot:
-        plt.figure(figsize=(10,4))
-        plt.plot(actual.index, actual, label='Actual')
-        plt.plot(actual.index, forecast_full, label='Forecast')
-        plt.legend(); plt.show()
+        # Downsample to reduce clutter
+        step = max(1, len(actual) // 1000)
+        x = actual.index[::step]
+        y_actual = actual[::step]
+        y_forecast = forecast_full[::step]
+
+        plt.figure(figsize=(14, 6))
+        plt.plot(x, y_actual, label='Actual', linewidth=1, alpha=1)
+        plt.plot(x, y_forecast, label='ARMAX (p=0, q=0, b=2)', linewidth=1, alpha=1)
+
+        plt.title("Actual ID1 vs 24h ahead ID1 Forecast", fontsize=16)
+        plt.xlabel("Date", fontsize=16)
+        plt.ylabel("EUR per MW", fontsize=16)
+        plt.legend(fontsize=14)
+        plt.xticks(fontsize=12)
+        plt.yticks(fontsize=12)
+        plt.grid(True, linestyle='--', alpha=0.5)
+        plt.tight_layout()
+        plt.show()
     return rmse, forecast_full
 
 # Generate forecasts and save to CSV
@@ -118,6 +145,126 @@ def generate_and_save_forecasts(full_data, forecast_values, y_col, output_file):
     print(f"Saved {len(output_df)} records to CSV file.")
     return output_df
 
+# Grid search for optimal ARMAX parameters
+def grid_search_armax(df, y_col, exog_cols, forecast_horizon, train_split, grid_params):
+    """
+    Perform grid search to find optimal ARMAX parameters.
+
+    Args:
+        df: Deseasonalized dataframe
+        y_col: Target column name
+        exog_cols: List of exogenous variable column names
+        forecast_horizon: Forecast horizon in hours
+        train_split: Train-test split ratio
+        grid_params: Dict with parameter grid for lags, ar_order, and ma_order
+
+    Returns:
+        Tuple of (best_params, results_df)
+    """
+    print("\n" + "="*50)
+    print("Starting grid search for optimal ARMAX parameters...")
+    print("="*50)
+
+    # Generate parameter combinations
+    lags_list = grid_params['lags']
+    ar_orders = grid_params['ar_order']
+    ma_orders = grid_params['ma_order']
+
+    # For storing results
+    results = []
+
+    # Best parameters tracking
+    best_rmse = float('inf')
+    best_params = {}
+    total_combinations = len(lags_list) * len(ar_orders) * len(ma_orders)
+
+    print(f"Grid search will evaluate {total_combinations} parameter combinations")
+    print(f"Parameters: lags {lags_list}, AR orders {ar_orders}, MA orders {ma_orders}")
+    print("-"*50)
+
+    counter = 0
+
+    # Iterate through parameter combinations
+    for lags in lags_list:
+        # Skip the case where lags=0 as it would create no lag features
+        if lags == 0:
+            # For lags=0, we only need to try models without AR terms
+            temp_ar_orders = [0]
+        else:
+            temp_ar_orders = ar_orders
+
+        for ar in temp_ar_orders:
+            for ma in ma_orders:
+                counter += 1
+                print(f"\nTrying combination {counter}/{total_combinations}: lags={lags}, ar_order={ar}, ma_order={ma}")
+
+                try:
+                    # Prepare data with current lag value
+                    y_train, X_train, y_test, X_test, test_df, full_df = prepare_deseasonal_armax_data(
+                        df, y_col, exog_cols, forecast_horizon=forecast_horizon,
+                        lags=lags, train_split=train_split
+                    )
+
+                    # Train model with current AR and MA orders
+                    fit = train_armax_model(y_train, X_train, ar_order=ar, ma_order=ma)
+
+                    # Generate out-of-sample forecasts
+                    preds_rem_test = forecast_armax_model(fit, steps=len(y_test), exog=X_test)
+
+                    # Calculate RMSE
+                    out_of_sample_rmse, _ = evaluate_deseasonalized(test_df, preds_rem_test, y_col, plot=False)
+
+                    # Get AIC and BIC metrics
+                    aic = fit.aic
+                    bic = fit.bic
+
+                    # Update best parameters if current RMSE is better
+                    if out_of_sample_rmse < best_rmse:
+                        best_rmse = out_of_sample_rmse
+                        best_params = {'lags': lags, 'ar_order': ar, 'ma_order': ma}
+                        print(f"New best model found! RMSE: {best_rmse:.2f} €/MWh")
+
+                    # Store results
+                    results.append({
+                        'lags': lags,
+                        'ar_order': ar,
+                        'ma_order': ma,
+                        'out_of_sample_rmse': out_of_sample_rmse,
+                        'aic': aic,
+                        'bic': bic
+                    })
+
+                    print(f"Completed: lags={lags}, ar_order={ar}, ma_order={ma}, RMSE={out_of_sample_rmse:.2f}, AIC={aic:.2f}, BIC={bic:.2f}")
+
+                except Exception as e:
+                    print(f"Error with lags={lags}, ar_order={ar}, ma_order={ma}: {str(e)}")
+                    results.append({
+                        'lags': lags,
+                        'ar_order': ar,
+                        'ma_order': ma,
+                        'out_of_sample_rmse': None,
+                        'aic': None,
+                        'bic': None,
+                        'error': str(e)
+                    })
+
+    # Convert results to DataFrame for analysis
+    results_df = pd.DataFrame(results)
+
+    # Sort by RMSE
+    results_df = results_df.sort_values('out_of_sample_rmse')
+
+    print("\n" + "="*50)
+    print("Grid search completed.")
+    print(f"Best parameters: {best_params}")
+    print(f"Best out-of-sample RMSE: {best_rmse:.2f} €/MWh")
+    print("="*50)
+    print("\nTop 5 parameter combinations:")
+    print(results_df.head(5).to_string(index=False))
+    print("="*50)
+
+    return best_params, results_df
+
 # Main function to execute the forecasting pipeline
 def run_forecast():
     # Get parameters from config
@@ -126,12 +273,10 @@ def run_forecast():
     date_col = CONFIG['date_col']
     exog_cols = CONFIG['exog_cols']
     forecast_horizon = CONFIG['forecast_horizon']
-    lags = CONFIG['lags']
     train_split = CONFIG['train_split']
-    ar_order = CONFIG['ar_order']
-    ma_order = CONFIG['ma_order']
     plot = CONFIG['plot_results']
     output_file = CONFIG['output_file']
+    grid_search = CONFIG.get('grid_search', False)
 
     # Load and preprocess data
     print(f"Loading data from {file_path}...")
@@ -141,15 +286,39 @@ def run_forecast():
     print("Deseasonalizing data...")
     df = deseasonalize_series(df0, date_col, y_col, plot=plot)
 
-    # Prepare data for ARMAX model
-    print("Preparing data for ARMAX model...")
+    # Check if grid search is enabled
+    if grid_search:
+        grid_params = CONFIG['grid_params']
+        best_params, results_df = grid_search_armax(
+            df, y_col, exog_cols, forecast_horizon, train_split, grid_params
+        )
+
+        # Save grid search results
+        results_file = output_file.replace('.csv', '_grid_search_results.csv')
+        results_df.to_csv(results_file, index=False)
+        print(f"Grid search results saved to {results_file}")
+
+        # Use best parameters for final model
+        lags = best_params['lags']
+        ar_order = best_params['ar_order']
+        ma_order = best_params['ma_order']
+
+        print(f"\nUsing optimal parameters for final model: lags={lags}, ar_order={ar_order}, ma_order={ma_order}")
+    else:
+        # Use parameters from CONFIG if not doing grid search
+        lags = CONFIG['lags']
+        ar_order = CONFIG['ar_order']
+        ma_order = CONFIG['ma_order']
+
+    # Prepare data for ARMAX model with optimal or configured parameters
+    print("\nPreparing data for final ARMAX model...")
     y_train, X_train, y_test, X_test, test_df, full_df = prepare_deseasonal_armax_data(
         df, y_col, exog_cols, forecast_horizon=forecast_horizon,
         lags=lags, train_split=train_split
     )
 
     # Train ARMAX model
-    print("Training ARMAX model...")
+    print("Training final ARMAX model...")
     fit = train_armax_model(y_train, X_train, ar_order=ar_order, ma_order=ma_order)
 
     # Generate forecasts for test set (out-of-sample)
